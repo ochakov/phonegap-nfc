@@ -70,13 +70,13 @@ var ndef = {
         if (!payload) { payload = []; }
 
         // convert strings to arrays
-        if (!(type instanceof Array)) {
+        if (!Array.isArray(type)) {
             type = nfc.stringToBytes(type);
         }
-        if (!(id instanceof Array)) {
+        if (!Array.isArray(id)) {
             id = nfc.stringToBytes(id);
         }
-        if (!(payload instanceof Array)) {
+        if (!Array.isArray(payload)) {
             payload = nfc.stringToBytes(payload);
         }
 
