@@ -3,7 +3,7 @@
     xmlns="http://www.phonegap.com/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
     id="phonegap-nfc"
-    version="1.2.0">
+    version="1.3.0">
 
     <name>NFC</name>
 
@@ -138,6 +138,16 @@
         <preference name="NFC_USAGE_DESCRIPTION" default="Read NFC Tags" />
         <config-file target="*-Info.plist" parent="NFCReaderUsageDescription">
             <string>$NFC_USAGE_DESCRIPTION</string>
+        </config-file>
+
+        <!-- NFC Forum Type 4 Tag NDEF application identifiers (v2 and v1). NFCTagReaderSession only
+             reports ISO 7816 tags (e.g. MIFARE DESFire) whose application is listed here.
+             https://developer.apple.com/documentation/bundleresources/information_property_list/select-identifiers -->
+        <config-file target="*-Info.plist" parent="com.apple.developer.nfc.readersession.iso7816.select-identifiers">
+            <array>
+                <string>D2760000850101</string>
+                <string>D2760000850100</string>
+            </array>
         </config-file>
     </platform>
 

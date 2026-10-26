@@ -2,7 +2,7 @@
 //  NfcPlugin.h
 //  PhoneGap NFC - Cordova Plugin
 //
-//  (c) 2107-2020 Don Coleman
+//  (c) 2017-2020 Don Coleman
 
 #ifndef NfcPlugin_h
 #define NfcPlugin_h
@@ -31,6 +31,8 @@
 - (void)removeNdef:(CDVInvokedUrlCommand *)command;
 - (void)enabled:(CDVInvokedUrlCommand *)command;
 - (void)writeTag:(CDVInvokedUrlCommand *)command;
+- (void)eraseTag:(CDVInvokedUrlCommand *)command;
+- (void)makeReadOnly:(CDVInvokedUrlCommand *)command;
 
 // Internal implementation
 - (void)channel:(CDVInvokedUrlCommand *)command;

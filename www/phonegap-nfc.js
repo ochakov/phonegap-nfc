@@ -440,17 +440,23 @@ var nfc = {
         cordova.exec(win, fail, "NfcPlugin", "registerNdefFormatable", []);
     },
 
-    write: function (ndefMessage, win, fail, options) {      
-        
+    // options are iOS only, see README
+    write: function (ndefMessage, win, fail, options) {
+
         if (cordova.platformId === "ios") {
-          cordova.exec(win, fail, "NfcPlugin", "writeTag", [ndefMessage, options]);        
+          cordova.exec(win, fail, "NfcPlugin", "writeTag", [ndefMessage, options || {}]);
         } else {
           cordova.exec(win, fail, "NfcPlugin", "writeTag", [ndefMessage]);
         }
     },
 
-    makeReadOnly: function (win, fail) {
-        cordova.exec(win, fail, "NfcPlugin", "makeReadOnly", []);
+    // options are iOS only, see README
+    makeReadOnly: function (win, fail, options) {
+        if (cordova.platformId === "ios") {
+          cordova.exec(win, fail, "NfcPlugin", "makeReadOnly", [options || {}]);
+        } else {
+          cordova.exec(win, fail, "NfcPlugin", "makeReadOnly", []);
+        }
     },
 
     share: function (ndefMessage, win, fail) {
@@ -473,8 +479,13 @@ var nfc = {
         cordova.exec(win, fail, "NfcPlugin", "stopHandover", []);
     },
 
-    erase: function (win, fail) {
-        cordova.exec(win, fail, "NfcPlugin", "eraseTag", [[]]);
+    // options are iOS only, see README
+    erase: function (win, fail, options) {
+        if (cordova.platformId === "ios") {
+          cordova.exec(win, fail, "NfcPlugin", "eraseTag", [options || {}]);
+        } else {
+          cordova.exec(win, fail, "NfcPlugin", "eraseTag", [[]]);
+        }
     },
 
     enabled: function (win, fail) {
@@ -501,16 +512,18 @@ var nfc = {
     },
 
     // iOS only - scan for NFC NDEF tag using NFCNDEFReaderSession
+    // options: { keepSessionOpen: boolean, alertMessage: string }
     scanNdef: function (options) {
         return new Promise(function(resolve, reject) {
-            cordova.exec(resolve, reject, "NfcPlugin", "scanNdef", [options]);
+            cordova.exec(resolve, reject, "NfcPlugin", "scanNdef", [options || {}]);
         });
     },
 
     // iOS only - scan for NFC Tag using NFCTagReaderSession
+    // options: { keepSessionOpen: boolean, alertMessage: string }
     scanTag: function (options) {
         return new Promise(function(resolve, reject) {
-            cordova.exec(resolve, reject, "NfcPlugin", "scanTag", [options]);
+            cordova.exec(resolve, reject, "NfcPlugin", "scanTag", [options || {}]);
         });
     },
     

@@ -1,3 +1,16 @@
+= 1.3.0 =
+iOS read the tag serial number for all tag types, FeliCa tags return the IDm; scanNdef includes the id when iOS exposes the tag
+iOS tags include maxSize, isWritable, mifareFamily and other technology details
+iOS format blank Type 2 (MIFARE Ultralight, NTAG) and Type 5 (ISO 15693) tags before writing, like Android
+iOS nfc.erase and nfc.makeReadOnly
+iOS alertMessage option for the NFC dialog
+iOS nfc.write uses NFCTagReaderSession by default, useNdefReaderSession option restores the previous behavior
+iOS check message size against the tag capacity before writing
+iOS add the Type 4 NDEF application identifiers to Info.plist so scanTag detects ISO 7816 tags
+iOS fix record ids being dropped when writing
+iOS fix keepSessionOpen option being ignored or always on
+iOS fix write with keepSessionOpen when no tag was connected
+
 = 1.2.0 =
 iOS allow tag read and write in same session #419
 

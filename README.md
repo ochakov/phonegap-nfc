@@ -70,7 +70,30 @@ The `scanNdef` function uses [NFCNDEFReaderSession](https://developer.apple.com/
 
 You must call [nfc.scanNdef](#nfcscanndef) and [nfc.scanTag](#nfcscantag) before every scan. 
 
-Writing NFC tags on iOS uses the same [nfc.write](#nfcwrite) function as other platforms. Although it's the same function, the behavior is different on iOS. Calling `nfc.write` on an iOS device will start a new scanning session and write data to the scanned tag.
+Writing NFC tags on iOS uses the same [nfc.write](#nfcwrite) function as other platforms. Although it's the same function, the behavior is different on iOS. Calling `nfc.write` on an iOS device will start a new scanning session and write data to the scanned tag. [nfc.erase](#nfcerase) and [nfc.makeReadOnly](#nfcmakereadonly) work the same way on iOS.
+
+### Reading the tag serial number (UID) on iOS
+
+Use [nfc.scanTag](#nfcscantag) to read the serial number. The tag returned by `scanTag` contains the UID in `tag.id` as an array of bytes, the same format Android uses, along with `tag.type` and extra details for the tag technology (for example `mifareFamily`). FeliCa tags return the IDm as the `id`. `scanNdef` also returns the `id` when iOS exposes the underlying tag, but `scanTag` is the reliable way to get it.
+
+    let tag = await nfc.scanTag();
+    console.log(nfc.bytesToHexString(tag.id));   // e.g. 04a224b2c35e80
+    console.log(tag.type);                       // e.g. NFCTagTypeMiFare
+    console.log(tag.maxSize, tag.isWritable);    // NDEF capacity and write access
+
+To detect ISO 7816 (NFC Forum Type 4, e.g. MIFARE DESFire) tags, `scanTag` needs the NDEF application identifiers in `Info.plist`. The plugin adds `D2760000850101` and `D2760000850100` to `com.apple.developer.nfc.readersession.iso7816.select-identifiers` when it is installed.
+
+### Formatting tags on iOS
+
+Android formats blank tags automatically before writing. CoreNFC has no format API, so the plugin formats blank tags itself by writing the NDEF capability container with raw tag commands. This works for NFC Forum Type 2 tags (MIFARE Ultralight, Ultralight C, Ultralight EV1, NTAG203, NTAG21x) and Type 5 tags (ISO 15693, e.g. NXP ICODE, ST25). Other tag types that are not NDEF formatted fail with an error. Formatting is on by default and can be disabled with the `format: false` option of [nfc.write](#nfcwrite).
+
+Formatting requires raw access to the tag, which is available when the tag was detected by a `NFCTagReaderSession`. `nfc.write` uses a `NFCTagReaderSession` by default. When writing to a tag scanned with `scanNdef({ keepSessionOpen: true })`, formatting only works if iOS exposes the underlying tag; use `scanTag({ keepSessionOpen: true })` when you need to format blank tags.
+
+### Session alert message
+
+`scanNdef`, `scanTag`, `write`, `erase` and `makeReadOnly` accept an `alertMessage` option to customize the text of the iOS NFC dialog.
+
+    let tag = await nfc.scanTag({ alertMessage: "Hold your phone near the ticket" });
 
 # NFC
 
@@ -293,21 +316,25 @@ A NDEF Message is an array of one or more NDEF Records
         ndef.uriRecord("http://github.com/chariotsolutions/phonegap-nfc")
     ];
 
-    nfc.write(message, [onSuccess], [onFailure]);
+    nfc.write(message, [onSuccess], [onFailure], [options]);
 
 ### Parameters
 
 - __ndefMessage__: An array of NDEF Records.
 - __onSuccess__: (Optional) The callback that is called when the tag is written.
 - __onFailure__: (Optional) The callback that is called if there was an error.
+- __options__: (Optional) iOS only. An object with the following optional keys.
+    - __format__: Format blank Type 2 and Type 5 tags before writing, like Android does. Default `true`.
+    - __alertMessage__: Text shown in the iOS NFC dialog.
+    - __useNdefReaderSession__: Use a `NFCNDEFReaderSession` instead of a `NFCTagReaderSession` for the new session. The tag reader session is the default because it can format blank tags and returns the UID. Set this to `true` for tags only the NDEF reader session detects (Topaz, FeliCa). Default `false`.
 
 ### Description
 
-Function `nfc.write` writes an NdefMessage to a NFC tag.
+Function `nfc.write` writes an NdefMessage to a NFC tag. Blank tags are formatted before writing when the tag type supports it. The write fails with an error when the message is larger than the capacity of the tag.
 
 On **Android** this method *must* be called from within an NDEF Event Handler.
 
-On **iOS** this method can be called outside the NDEF Event Handler, it will start a new scanning session. Optionally you can reuse the read session to write data. See example below.
+On **iOS** this method can be called outside the NDEF Event Handler, it will start a new scanning session. Optionally you can reuse the read session to write data. See example below. Writing requires iOS 13.
 
 On **Windows** this method *may* be called from within the NDEF Event Handler.
 
@@ -352,10 +379,11 @@ Calling `nfc.write` on iOS will create a new session and write data when the use
 
 #### iOS - Read and Write
 
-On iOS you can optionally write to NFC tag using the read session
+On iOS you can optionally write to NFC tag using the read session. Use `scanTag` to get the serial number of the tag and to be able to format blank tags. The session stays open for about 60 seconds, so call `nfc.write` right after the scan.
 
         try {
-            let tag = await nfc.scanNdef({ keepSessionOpen: true});
+            let tag = await nfc.scanTag({ keepSessionOpen: true});
+            console.log(nfc.bytesToHexString(tag.id));
 
             // you can read tag data here
             console.log(tag);
@@ -387,18 +415,21 @@ On iOS you can optionally write to NFC tag using the read session
 
 Makes a NFC tag read only.  **Warning this is permanent.**
 
-    nfc.makeReadOnly([onSuccess], [onFailure]);
+    nfc.makeReadOnly([onSuccess], [onFailure], [options]);
 
 ### Parameters
 
 - __onSuccess__: (Optional) The callback that is called when the tag is locked.
 - __onFailure__: (Optional) The callback that is called if there was an error.
+- __options__: (Optional) iOS only. `alertMessage` and `useNdefReaderSession`, see [nfc.write](#nfcwrite).
 
 ### Description
 
 Function `nfc.makeReadOnly` make a NFC tag read only. **Warning this is permanent** and can not be undone.
 
 On **Android** this method *must* be called from within an NDEF Event Handler.
+
+On **iOS** this method starts a new scanning session and locks the scanned tag, or locks the tag from a read session started with `keepSessionOpen: true`. The tag must be NDEF formatted. Requires iOS 13.
 
 Example usage
 
@@ -427,6 +458,7 @@ Example usage
 ### Supported Platforms
 
 - Android
+- iOS
 
 ## nfc.share
 
@@ -490,22 +522,26 @@ Function `nfc.unshare` stops sharing data via peer-to-peer.
 
 Erase a NDEF tag
 
-    nfc.erase([onSuccess], [onFailure]);
+    nfc.erase([onSuccess], [onFailure], [options]);
 
 ### Parameters
 
-- __onSuccess__: (Optional) The callback that is called when sharing stops.
+- __onSuccess__: (Optional) The callback that is called when the tag is erased.
 - __onFailure__: (Optional) The callback that is called if there was an error.
+- __options__: (Optional) iOS only. Same options as [nfc.write](#nfcwrite).
 
 ### Description
 
 Function `nfc.erase` erases a tag by writing an empty message.  Will format unformatted tags before writing.
 
-This method *must* be called from within an NDEF Event Handler.
+On **Android** this method *must* be called from within an NDEF Event Handler.
+
+On **iOS** this method behaves like [nfc.write](#nfcwrite): it starts a new scanning session or reuses a read session started with `keepSessionOpen: true`. Requires iOS 13.
 
 ### Supported Platforms
 
 - Android
+- iOS
 - BlackBerry 7
 
 ## nfc.handover
@@ -669,7 +705,13 @@ Function `invalidateSession` stops the [NFCNDEFReaderSession](https://developer.
 
 Calling `scanNdef` will being an iOS NFC scanning session. The NFC tag will be returned in a Promise.
 
-    nfc.scanNdef();
+    nfc.scanNdef([options]);
+
+### Parameters
+
+- __options__: (Optional) An object with the following optional keys.
+    - __keepSessionOpen__: Keep the session open after the tag is read so [nfc.write](#nfcwrite), [nfc.erase](#nfcerase) or [nfc.makeReadOnly](#nfcmakereadonly) can use the same tag. Default `false`.
+    - __alertMessage__: Text shown in the iOS NFC dialog.
 
 ### Description
 
@@ -677,7 +719,7 @@ Function `scanNdef` starts the [NFCNDEFReaderSession](https://developer.apple.co
 
 ### Returns
 
- - Promise
+ - Promise resolving to the tag. The tag contains `ndefMessage` (an array of NDEF records), `isWritable` and `maxSize` (the NDEF capacity in bytes) for NDEF formatted tags. The `id` and `type` are included when iOS exposes the underlying tag, use [scanTag](#nfcscantag) when you need them.
 
 ### Quick Example
 
@@ -704,7 +746,11 @@ Function `scanNdef` starts the [NFCNDEFReaderSession](https://developer.apple.co
 
 Calling `scanTag` will being an iOS NFC scanning session. The NFC tag will be returned in a Promise.
 
-    nfc.scanTag();
+    nfc.scanTag([options]);
+
+### Parameters
+
+- __options__: (Optional) Same options as [scanNdef](#nfcscanndef): `keepSessionOpen` and `alertMessage`.
 
 ### Description
 
@@ -712,11 +758,19 @@ Function `scanTag` starts the [NFCTagReaderSession](https://developer.apple.com/
 
 The Tag reader will attempt to get the UID from the NFC Tag. If can also read the UID from some non-NDEF tags. 
 
-Use [scanNdef](#nfcscanndef) for reading NFC tags on iOS unless you need to get the tag UID.
+Use [scanNdef](#nfcscanndef) for reading NFC tags on iOS unless you need to get the tag UID or want to write to blank tags.
 
 ### Returns
 
- - Promise
+ - Promise resolving to the tag, with the following properties.
+    - __id__: The serial number (UID) of the tag as an array of bytes. For FeliCa tags this is the IDm.
+    - __type__: `NFCTagTypeMiFare`, `NFCTagTypeISO15693`, `NFCTagTypeISO7816Compatible` or `NFCTagTypeFeliCa`.
+    - __ndefMessage__: An array of NDEF records, present for NDEF formatted tags.
+    - __isWritable__ and __maxSize__: NDEF write access and capacity in bytes, present for NDEF formatted tags.
+    - __mifareFamily__: `Ultralight`, `Plus`, `DESFire` or `Unknown` for MIFARE tags.
+    - __historicalBytes__, __applicationData__, __initialSelectedAID__: ISO 7816 details when available.
+    - __icManufacturerCode__, __icSerialNumber__: ISO 15693 details.
+    - __systemCode__: FeliCa system code.
 
 ### Quick Example
 
